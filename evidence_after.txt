@@ -1,0 +1,36 @@
+AFTER OPTIMIZATION
+
+1. events_aggregation AFTER
+Plan still used Seq Scan on customer_events_wide.
+Execution Time: 87.627 ms.
+Before: 101.062 ms
+After: 87.627 ms
+The query became slightly faster after ANALYZE and indexes, but because the filter selects a large part of the table, PostgreSQL still preferred a sequential scan.
+
+2. items_products_join AFTER
+
+Plan used Hash Join and aggregation.
+Execution Time: 83.023 ms.
+Before: 99.542 ms
+After: 83.023 ms
+The query became faster, but the planner still used a hash join because the query aggregates almost the whole order_items table.
+
+3. cartesian_pressure AFTER
+
+Plan used Parallel Hash Join and Bitmap Heap Scan on customer_events_wide.
+Execution Time: 52.116 ms.
+Before: 76.225 ms
+After: 52.116 ms
+This query improved because the index on event_time allowed PostgreSQL to use a bitmap scan instead of scanning the whole customer_events_wide table.
+
+4. email search AFTER
+
+Plan used Bitmap Index Scan on idx_customers_email_trgm.
+Execution Time: 0.068 ms.
+This is a strong improvement because LIKE '%gmail%' cannot efficiently use a normal B-tree index. The trigram GIN index is appropriate for substring search.
+
+5. orders_by_city_and_status AFTER
+
+Plan used Bitmap Index Scan on idx_orders_status_delivery_city.
+Execution Time: 12.191 ms.
+The composite index helped filter orders by status before applying the delivery_city filter.
