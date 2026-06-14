@@ -1,0 +1,59 @@
+BEFORE OPTIMIZATION
+
+1. Table sizes
+
+customers: 20000 rows
+products: 2000 rows
+orders: 120000 rows
+order_items: 360267 rows
+customer_events_wide: 200000 rows
+
+2. Lock and blocking evidence
+
+Blocking sessions were detected using pg_stat_activity and pg_blocking_pids().
+Several sessions were waiting on Lock events.
+Observed wait events:
+transactionid
+tuple
+relation
+This shows that the workload generated row-level lock contention and table-level lock contention.
+
+3. pg_stat_statements top queries
+
+The most expensive statements were UPDATE queries on customers, especially conflicting_customer_update.
+Observed examples:
+UPDATE customers SET phone = ...
+mean_exec_time: 1642.27 ms
+UPDATE customers ...
+mean_exec_time: 5472.7 ms
+UPDATE customers ...
+mean_exec_time: 2134.04 ms
+Other expensive queries:
+events_aggregation mean_exec_time: 119.33 ms
+items_products_join mean_exec_time: 72.07 ms
+cartesian_pressure mean_exec_time: 79.41 ms
+
+4. events_aggregation BEFORE
+
+Plan used Seq Scan on customer_events_wide.
+Rows Removed by Filter: 101727.
+Execution Time: 101.062 ms.
+
+5. items_products_join BEFORE
+
+Plan used Parallel Seq Scan on order_items and Hash Join with products.
+Execution Time: 99.542 ms.
+
+6. cartesian_pressure BEFORE
+
+Plan used Parallel Seq Scan on customer_events_wide and Seq Scan on customers.
+Execution Time: 76.225 ms.
+
+7. Concurrency evidence from terminal
+
+orders_writer: 8.688s
+orders_writer: 11.058s
+conflicting_customer_update: 10.837s
+deadlock detected and rolled back: 40P01
+LockNotAvailable: canceling statement due to lock timeout
+This confirms lock contention and deadlock scenarios.
